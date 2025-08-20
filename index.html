@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>ウマ娘を描こう🎨</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; max-width: 500px; margin: auto; }
+    button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin-top: 5px; }
+    #resultTitle { margin-top: 20px; font-size: 20px; font-weight: bold; }
+    #result { font-size: 24px; font-weight: bold; margin-top: 5px; }
+    #history { margin-top: 10px; }
+    #history li { margin-bottom: 5px; }
+    #historyTitle { margin-top: 30px; font-weight: bold; font-size: 18px; }
+  </style>
+</head>
+<body>
+  <h1>ウマ娘を描こう🎨</h1>
+  <button id="drawBtn">今日の一人！</button>
+
+  <div id="resultTitle"></div>
+  <div id="result"></div>
+
+  <div id="historyTitle">りれき</div>
+  <ul id="history"></ul>
+  
+  <div>
+    <input type="checkbox" id="confirmClear">
+    <label for="confirmClear">履歴を初期化できます</label>
+    <button id="clearBtn">履歴を消す</button>
+  </div>
+
+  <script>
+    let names = [];
+    let allNames = [];
+    let historyList = [];
+
+    const drawBtn = document.getElementById("drawBtn");
+    const resultTitle = document.getElementById("resultTitle");
+    const resultDiv = document.getElementById("result");
+    const historyUl = document.getElementById("history");
+    const clearBtn = document.getElementById("clearBtn");
+    const confirmClear = document.getElementById("confirmClear");
+
+    // 初期化
+    resultTitle.textContent = "";
+    resultDiv.textContent = "";
+
+    // JSONを読み込む
+    fetch("names.json")
+      .then(response => response.json())
+      .then(data => {
+        allNames = [...data.names]; // 元の名前リストを保持
+        names = [...allNames];
+
+        // localStorageに履歴があれば復元
+        const savedHistory = localStorage.getItem('history');
+        if(savedHistory) {
+          historyList = JSON.parse(savedHistory);
+          updateHistory();
+          // 名前リストから履歴分を除外
+          historyList.forEach(item => {
+            const idx = names.indexOf(item.name);
+            if(idx !== -1) names.splice(idx, 1);
+          });
+        }
+      })
+      .catch(err => console.error("読み込み失敗:", err));
+
+    drawBtn.addEventListener("click", () => {
+      if(names.length === 0) {
+        resultTitle.textContent = "";
+        resultDiv.textContent = "もう抽選できる人がいません！";
+        return;
+      }
+
+      resultTitle.textContent = "";
+      resultDiv.textContent = "抽選中…";
+
+      setTimeout(() => {
+        const idx = Math.floor(Math.random() * names.length);
+        const winner = names.splice(idx, 1)[0];
+
+        // 時間を yyyy/mm/dd hh:mm 形式で作成
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const timeStr = `${year}/${month}/${day} ${hours}:${minutes}`;
+
+        historyList.unshift({ name: winner, time: timeStr });
+        localStorage.setItem('history', JSON.stringify(historyList));
+
+        resultTitle.textContent = "今日はこのウマ娘！";
+        resultDiv.textContent = `🎉 ${winner} 🎉 (${timeStr})`;
+        updateHistory();
+      }, 500);
+    });
+
+    clearBtn.addEventListener("click", () => {
+      if(!confirmClear.checked) {
+        alert("チェックを入れてから初期化してください");
+        return;
+      }
+      if(confirm("本当に履歴を消しますか？")) {
+        historyList = [];
+        localStorage.removeItem('history');
+        names = [...allNames]; // 全員復活
+        resultTitle.textContent = "";
+        resultDiv.textContent = "";
+        updateHistory();
+        alert("履歴を初期化しました");
+      }
+    });
+
+    function updateHistory() {
+      historyUl.innerHTML = "";
+      historyList.forEach(item => {
+        const li = document.createElement("li");
+        li.textContent = `${item.name} (${item.time})`;
+        historyUl.appendChild(li);
+      });
+    }
+  </script>
+</body>
+</html>
